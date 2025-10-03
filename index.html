@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Running Text — Super Keren</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ui-bg: #071024;
+    --card-bg: linear-gradient(135deg,#0f1724 0%, #111827 100%);
+    --accent: #7ee7ff;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family: "Montserrat", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    background: radial-gradient(1200px 600px at 10% 10%, rgba(126,231,255,0.05), transparent),
+                radial-gradient(900px 400px at 90% 90%, rgba(255,120,192,0.03), transparent),
+                var(--ui-bg);
+    color:#e6eef8;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:28px;
+    gap:20px;
+  }
+
+  .container{
+    width:100%;
+    max-width:1100px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius:14px;
+    padding:22px;
+    box-shadow: 0 6px 30px rgba(2,6,23,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+    display:grid;
+    grid-template-columns: 1fr 420px;
+    gap:18px;
+  }
+
+  .left{
+    padding:18px;
+  }
+  h1{margin:0 0 8px;font-weight:900;letter-spacing:-0.5px;}
+  p.lead{margin:0 0 18px;color:#9fb6d1}
+
+  .form-row{display:flex;gap:10px;margin-bottom:12px;align-items:center}
+  label{font-size:13px;color:#9fb6d1;min-width:110px}
+  input[type="text"], input[type="number"], select{
+    flex:1;
+    padding:10px 12px;
+    border-radius:8px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.03);
+    color:inherit;
+    outline:none;
+    font-size:14px;
+  }
+  input[type="color"]{width:48px;height:40px;padding:0;border-radius:8px;border:none}
+  .controls{display:grid;grid-template-columns:1fr 1fr; gap:10px}
+  .small{font-size:13px;color:#9fb6d1}
+
+  .card{
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius:10px;padding:12px;border:1px solid rgba(255,255,255,0.03)
+  }
+
+  .right{
+    padding:18px;
+  }
+
+  .preview{
+    margin-top:10px;
+    border-radius:8px;
+    overflow:hidden;
+    height:220px;
+    position:relative;
+    background:linear-gradient(90deg,#071124,#04111b);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:#9fb6d1;
+  }
+
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    background:linear-gradient(90deg,var(--accent),#a89bff);
+    color:#001b2b;padding:12px 16px;border-radius:10px;border:none;
+    font-weight:700;cursor:pointer;font-size:15px;box-shadow:0 8px 24px rgba(0,0,0,0.5);
+  }
+  .btn.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06);color:#9fb6d1;font-weight:600}
+  .muted{color:#9fb6d1;font-size:13px}
+
+  /* FULLSCREEN RUNNING TEXT LAYER */
+  .fs-overlay{
+    position:fixed;inset:0;z-index:99999;display:flex;
+    align-items:center;justify-content:flex-start;overflow:hidden;
+    background:#000; --paused: running;
+  }
+  .fs-bg{position:absolute;inset:0;z-index:0;overflow:hidden}
+  .fs-text-wrap{
+    position:relative;z-index:2;width:100%;height:100%;display:flex;align-items:center;
+    pointer-events:none;
+  }
+
+  .runner{
+    white-space:nowrap; display:inline-block; will-change:transform;
+    font-weight:900; font-size:14vw; text-transform:uppercase;
+    transform:translateX(0);
+    text-align:left;
+  }
+
+  /* efek glow default */
+  .glow{
+    text-shadow:
+      0 0 8px rgba(255,255,255,0.06),
+      0 0 24px rgba(126,231,255,0.08),
+      0 0 40px rgba(168,155,255,0.06);
+  }
+
+  /* saat dijeda */
+  .paused .runner{animation-play-state:paused !important;opacity:0.6}
+  .paused .fs-bg canvas{filter:grayscale(100%) brightness(.6)}
+
+  /* instruksi kecil saat fullscreen */
+  .fs-instr{
+    position:fixed;left:12px;bottom:12px;z-index:4;background:rgba(0,0,0,0.4);
+    padding:8px 10px;border-radius:8px;font-size:13px;color:#d7eefc;
+    border:1px solid rgba(255,255,255,0.03)
+  }
+
+  /* matrix canvas covers */
+  canvas#matrixCanvas{
+    position:absolute;inset:0;width:100%;height:100%;display:block;
+  }
+
+  /* simple animation helper (we will set inline style for duration) */
+  @keyframes scrollLeft {
+    from{transform:translateX(var(--start,100%))}
+    to{transform:translateX(var(--end,-100%))}
+  }
+
+  /* responsive */
+  @media (max-width:900px){
+    .container{grid-template-columns:1fr; padding:14px}
+    .right{order:-1}
+    .preview{height:180px}
+  }
+</style>
+</head>
+<body>
+  <div class="container" role="application" aria-label="Running Text Creator">
+    <div class="left">
+      <h1>Running Text — Super Keren</h1>
+      <p class="lead">Buat teks berjalan full-screen dengan latar RGB Matrix atau warna polos. Tekan <strong>Play</strong> lalu gunakan <strong>Spasi</strong> untuk berhenti / melanjutkan, dan <strong>Esc</strong> untuk keluar dari fullscreen.</p>
+
+      <div class="card">
+        <div class="form-row">
+          <label for="textInput">Teks</label>
+          <input id="textInput" type="text" placeholder="Ketik teks yang akan berjalan... contoh: SELAMAT DATANG" value="SELAMAT DATANG DI SHOWCASE SUPER KEREN">
+        </div>
+
+        <div class="form-row">
+          <label for="bgType">Latar</label>
+          <select id="bgType">
+            <option value="matrix">RGB Matrix (efek jatuh)</option>
+            <option value="solid">Warna Polos</option>
+            <option value="gradient">Gradasi Dinamis</option>
+          </select>
+        </div>
+
+        <div class="form-row" id="solidRow">
+          <label for="bgColor">Warna Latar</label>
+          <input id="bgColor" type="color" value="#001219">
+        </div>
+
+        <div class="form-row" id="textColorRow">
+          <label for="textColor">Warna Teks</label>
+          <input id="textColor" type="color" value="#fff1a8">
+        </div>
+
+        <div class="form-row">
+          <label for="sizeRange">Ukuran</label>
+          <input id="sizeRange" type="range" min="8" max="28" value="14">
+          <div class="muted" id="sizeDisplay">14 vw</div>
+        </div>
+
+        <div class="form-row">
+          <label for="speedRange">Kecepatan</label>
+          <input id="speedRange" type="range" min="10" max="120" value="40">
+          <div class="muted" id="speedDisplay">40 (standar)</div>
+        </div>
+
+        <div class="form-row">
+          <label for="glowToggle">Efek Glow</label>
+          <input id="glowToggle" type="checkbox" checked>
+          <div class="muted">Tambahkan cahaya halus di sekitar teks</div>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:12px;">
+          <button class="btn" id="playBtn" title="Mulai full-screen">▶ Play Fullscreen</button>
+          <button class="btn secondary" id="previewBtn" title="Pratinjau tanpa fullscreen">Preview</button>
+        </div>
+
+        <div style="margin-top:12px;color:#9fb6d1;font-size:13px">
+          <strong>Kontrol:</strong> Spasi = jeda / lanjut, Esc = keluar fullscreen. <br>
+          Tip: Untuk hasil dramatis, gunakan teks dengan huruf kapital dan spasi panjang.
+        </div>
+      </div>
+
+      <div style="height:14px"></div>
+
+      <div class="card">
+        <h3 style="margin:0 0 8px">Pengaturan Lain</h3>
+        <div class="form-row">
+          <label>Align Vertikal</label>
+          <select id="vAlign">
+            <option value="center">Center</option>
+            <option value="top">Top</option>
+            <option value="bottom">Bottom</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <label>Mode Teks</label>
+          <select id="textTransform">
+            <option value="uppercase">UPPERCASE</option>
+            <option value="none">Normal</option>
+            <option value="lowercase">lowercase</option>
+          </select>
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="right">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+        <div style="font-weight:700">Pratinjau</div>
+        <div class="muted">Lihat sebelum Play</div>
+      </div>
+
+      <div class="preview card" id="previewArea" aria-hidden="false">
+        <canvas id="matrixPreview" style="display:none"></canvas>
+        <div id="previewText" style="font-weight:900;font-size:6vw;padding:10px;text-align:center;max-width:95%;overflow:hidden">
+          SELAMAT DATANG DI SHOWCASE SUPER KEREN
+        </div>
+      </div>
+
+      <div style="margin-top:12px;display:flex;gap:10px">
+        <button class="btn secondary" id="applyPreview">Apply ke Preview</button>
+        <button class="btn secondary" id="resetBtn">Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FULLSCREEN OVERLAY (diciptakan dinamis juga bisa) -->
+  <div id="fsOverlay" class="fs-overlay" style="display:none" role="dialog" aria-modal="true">
+    <div class="fs-bg" id="fsBg"></div>
+    <div class="fs-text-wrap" id="fsTextWrap">
+      <div id="runnerEl" class="runner glow">RUNNING TEXT</div>
+    </div>
+    <div class="fs-instr" id="fsInstr">Spasi = jeda / lanjut • Esc = keluar</div>
+  </div>
+
+<script>
+/*
+  Script utama:
+  - Mengatur preview
+  - Membuat efek matrix (canvas) untuk preview & fullscreen
+  - Menghitung durasi animasi berdasarkan lebar teks dan kecepatan
+  - Menangani fullscreen, jeda (spasi), dan exit (esc)
+*/
+
+// ----- helper -----
+const $ = sel => document.querySelector(sel);
+const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+
+// elemen
+const textInput = $('#textInput');
+const bgType = $('#bgType');
+const bgColor = $('#bgColor');
+const textColor = $('#textColor');
+const sizeRange = $('#sizeRange');
+const sizeDisplay = $('#sizeDisplay');
+const speedRange = $('#speedRange');
+const speedDisplay = $('#speedDisplay');
+const glowToggle = $('#glowToggle');
+const playBtn = $('#playBtn');
+const previewBtn = $('#previewBtn');
+const previewArea = $('#previewArea');
+const previewText = $('#previewText');
+const applyPreview = $('#applyPreview');
+const resetBtn = $('#resetBtn');
+const fsOverlay = $('#fsOverlay');
+const fsBg = $('#fsBg');
+const runnerEl = $('#runnerEl');
+const matrixPreviewCanvas = $('#matrixPreview');
+const vAlign = $('#vAlign');
+const textTransform = $('#textTransform');
+
+// default setup
+previewText.textContent = textInput.value;
+previewText.style.color = textColor.value;
+sizeDisplay.textContent = sizeRange.value + " vw";
+speedDisplay.textContent = speedRange.value + " (standar)";
+
+// ---- matrix background (canvas) ----
+function createMatrixCanvas(targetEl, idSuffix=''){
+  // buat canvas
+  const canvas = document.createElement('canvas');
+  canvas.id = 'matrixCanvas' + idSuffix;
+  canvas.style.width = '100%';
+  canvas.style.height = '100%';
+  canvas.width = targetEl.clientWidth;
+  canvas.height = targetEl.clientHeight;
+  targetEl.innerHTML = '';
+  targetEl.appendChild(canvas);
+
+  const ctx = canvas.getContext('2d', {alpha:true});
+  let w = canvas.width;
+  let h = canvas.height;
+  let cols = Math.floor(w / 16) + 1;
+  let drops = new Array(cols).fill(0).map(()=>Math.floor(Math.random()*h));
+  const letters = "01𐄂╳▣▦▧■▩▲◆○●★☆";
+  // color array for RGB effect
+  function resize(){
+    canvas.width = targetEl.clientWidth;
+    canvas.height = targetEl.clientHeight;
+    w = canvas.width; h = canvas.height;
+    cols = Math.floor(w / 16) + 1;
+    drops = new Array(cols).fill(0).map(()=>Math.floor(Math.random()*h));
+  }
+  window.addEventListener('resize', resize);
+
+  let running = true;
+  function stop(){ running=false; }
+  function start(){ if(!running){ running=true; loop(); } }
+
+  function loop(){
+    if(!running) return;
+    ctx.fillStyle = "rgba(0,0,0,0.18)";
+    ctx.fillRect(0,0,w,h);
+    ctx.font = "14px monospace";
+    for(let i=0;i<cols;i++){
+      const x = i*16;
+      const y = drops[i]*16;
+      const char = letters.charAt(Math.floor(Math.random()*letters.length));
+      // gradient color rainbow-ish based on column
+      const hue = (i*7 + (Date.now()/30)) % 360;
+      ctx.fillStyle = `hsl(${hue} 90% 60% / 0.95)`;
+      ctx.fillText(char, x, y);
+      if(y > h && Math.random() > 0.975) drops[i] = 0;
+      drops[i]++;
+    }
+    requestAnimationFrame(loop);
+  }
+  start();
+  return {canvas, start, stop, destroy: ()=>{running=false; window.removeEventListener('resize', resize); try{targetEl.removeChild(canvas)}catch(e){} }};
+}
+
+// matrix instance for preview & fullscreen
+let previewMatrix = null;
+let fsMatrix = null;
+
+function enablePreviewMatrix(){
+  if(previewMatrix) previewMatrix.destroy();
+  if(bgType.value === 'matrix'){
+    matrixPreviewCanvas.style.display='block';
+    // reuse the canvas element
+    previewArea.innerHTML = '';
+    previewArea.appendChild(matrixPreviewCanvas);
+    matrixPreviewCanvas.width = previewArea.clientWidth;
+    matrixPreviewCanvas.height = previewArea.clientHeight;
+    // create matrix on the canvas wrapper
+    previewMatrix = createMatrixCanvas(previewArea, '_preview');
+  } else {
+    // remove canvas and restore previewText
+    matrixPreviewCanvas.style.display='none';
+    if(previewMatrix){ previewMatrix.destroy(); previewMatrix = null; }
+    previewArea.innerHTML = '';
+    previewArea.appendChild(previewText);
+  }
+}
+
+// apply preview values to preview box
+function applyToPreview(){
+  previewText.textContent = textInput.value || '';
+  previewText.style.fontSize = sizeRange.value + 'vw';
+  previewText.style.color = textColor.value;
+  previewText.style.textTransform = textTransform.value;
+  previewText.classList.toggle('glow', glowToggle.checked);
+  // background
+  if(bgType.value === 'solid'){
+    previewArea.style.background = bgColor.value;
+  } else if(bgType.value === 'gradient'){
+    previewArea.style.background = `linear-gradient(90deg, ${bgColor.value}, #0b1020)`;
+  } else { // matrix
+    previewArea.style.background = '#000';
+  }
+  enablePreviewMatrix();
+}
+
+// ---- animation/duration helper ----
+function computeDurationForText(el, speedValue){
+  // speedValue: higher = faster (we invert it)
+  // measure text width and viewport width => distance to travel = textW + vw
+  document.body.appendChild(el); // ensure in DOM for measurement (but our runner is in overlay)
+  const textW = el.getBoundingClientRect().width;
+  const vw = window.innerWidth;
+  const distance = textW + vw;
+  // map speedValue (10..120) to pixels per second roughly (80..2000)
+  const pixelsPerSecond = 20 + (speedValue / 120) * 2200;
+  const secs = distance / pixelsPerSecond;
+  // ensure sensible min/max
+  return clamp(secs, 3, 80);
+}
+
+// ---- create & start fullscreen runner ----
+let isPaused = false;
+let activeAnimation = null;
+function startFullscreenRunner(opts = {}){
+  // opts: {text, bgType, bgColor, textColor, sizeVW, speed, glow, vAlign, transform}
+  const overlay = fsOverlay;
+  overlay.style.display = 'flex';
+  overlay.classList.remove('paused');
+
+  // background setup
+  fsBg.innerHTML = ''; // clear
+  if(opts.bgType === 'matrix'){
+    fsMatrix = createMatrixCanvas(fsBg, '_fs');
+  } else if(opts.bgType === 'solid'){
+    fsBg.style.background = opts.bgColor || '#000';
+  } else if(opts.bgType === 'gradient'){
+    fsBg.style.background = `linear-gradient(90deg, ${opts.bgColor||'#001219'}, #020814)`;
+  } else {
+    fsBg.style.background = '#000';
+  }
+
+  // text
+  runnerEl.textContent = opts.text || '';
+  runnerEl.style.color = opts.textColor || '#fff';
+  runnerEl.style.fontSize = (opts.sizeVW || 14) + 'vw';
+  runnerEl.style.textTransform = opts.transform || 'uppercase';
+  runnerEl.classList.toggle('glow', !!opts.glow);
+
+  // vertical align
+  const wrap = document.getElementById('fsTextWrap');
+  if(opts.vAlign === 'top') wrap.style.alignItems = 'flex-start';
+  else if(opts.vAlign === 'bottom') wrap.style.alignItems = 'flex-end';
+  else wrap.style.alignItems = 'center';
+
+  // compute animation duration dynamically
+  // create a clone to measure width exactly (offscreen)
+  const clone = runnerEl.cloneNode(true);
+  clone.style.position = 'fixed';
+  clone.style.left = '-9999px';
+  clone.style.top = '-9999px';
+  clone.style.whiteSpace = 'nowrap';
+  clone.style.fontSize = getComputedStyle(runnerEl).fontSize;
+  document.body.appendChild(clone);
+  const duration = computeDurationForText(clone, opts.speed || 40);
+  document.body.removeChild(clone);
+
+  // set CSS animation using keyframes with start at 100% and end at -textWidth
+  const startX = '100%';
+  const endX = '-100%';
+  runnerEl.style.setProperty('--start', startX);
+  runnerEl.style.setProperty('--end', endX);
+  runnerEl.style.animation = `scrollLeft ${duration}s linear infinite`;
+  runnerEl.style.willChange = 'transform';
+  // focus to catch keyboard
+  overlay.tabIndex = -1;
+  overlay.focus();
+
+  isPaused = false;
+  overlay.classList.remove('paused');
+
+  // fullscreen
+  if (document.fullscreenEnabled) {
+    document.documentElement.requestFullscreen().catch(()=>{/* ignore */});
+  }
+
+  // key handlers
+  function onKey(e){
+    if(e.code === 'Space'){
+      e.preventDefault();
+      togglePause();
+    } else if (e.key === 'Escape'){
+      stopAndClose();
+    }
+  }
+  // attach listener to document
+  document.addEventListener('keydown', onKey);
+  // store cleanup
+  activeAnimation = {
+    cleanup: ()=>{
+      document.removeEventListener('keydown', onKey);
+    },
+    duration
+  };
+}
+
+// pause/resume toggle
+function togglePause(){
+  isPaused = !isPaused;
+  fsOverlay.classList.toggle('paused', isPaused);
+  if(isPaused){
+    // pause animation by computing computed transform and freeze it
+    // simpler: set animation-play-state paused
+    runnerEl.style.animationPlayState = 'paused';
+    if(fsMatrix) fsMatrix.stop();
+  }else{
+    runnerEl.style.animationPlayState = 'running';
+    if(fsMatrix) fsMatrix.start();
+  }
+}
+
+// stop and cleanup overlay
+function stopAndClose(){
+  if(activeAnimation && activeAnimation.cleanup) activeAnimation.cleanup();
+  try{ if(document.fullscreenElement) document.exitFullscreen(); }catch(e){}
+  if(fsMatrix){ fsMatrix.destroy(); fsMatrix = null; }
+  fsOverlay.style.display = 'none';
+  runnerEl.style.animation = '';
+  runnerEl.textContent = '';
+}
+
+// ---- bind UI events ----
+bgType.addEventListener('change', ()=>{
+  // show/hide color picker
+  document.getElementById('solidRow').style.display = (bgType.value === 'solid' || bgType.value === 'gradient') ? 'flex' : 'none';
+  enablePreviewMatrix();
+});
+textInput.addEventListener('input', ()=>{ previewText.textContent = textInput.value; });
+textColor.addEventListener('input', ()=>{ previewText.style.color = textColor.value; });
+sizeRange.addEventListener('input', ()=>{ sizeDisplay.textContent = sizeRange.value + " vw"; previewText.style.fontSize = sizeRange.value + 'vw'; });
+speedRange.addEventListener('input', ()=>{ speedDisplay.textContent = speedRange.value + " (standar)"; });
+glowToggle.addEventListener('change', ()=>{ previewText.classList.toggle('glow', glowToggle.checked); });
+applyPreview.addEventListener('click', applyToPreview);
+previewBtn.addEventListener('click', ()=>{
+  applyToPreview();
+  // small zoom effect
+  previewArea.animate([{transform:'scale(0.99)'},{transform:'scale(1)'}],{duration:200,fill:'forwards'});
+});
+
+// Play button
+playBtn.addEventListener('click', ()=>{
+  const opts = {
+    text: textInput.value || '',
+    bgType: bgType.value,
+    bgColor: bgColor.value,
+    textColor: textColor.value,
+    sizeVW: parseFloat(sizeRange.value),
+    speed: parseFloat(speedRange.value),
+    glow: glowToggle.checked,
+    vAlign: vAlign.value,
+    transform: textTransform.value
+  };
+  startFullscreenRunner(opts);
+});
+
+// reset
+resetBtn.addEventListener('click', ()=>{
+  textInput.value = 'SELAMAT DATANG DI SHOWCASE SUPER KEREN';
+  bgType.value = 'matrix';
+  bgColor.value = '#001219';
+  textColor.value = '#fff1a8';
+  sizeRange.value = 14;
+  speedRange.value = 40;
+  glowToggle.checked = true;
+  vAlign.value = 'center';
+  textTransform.value = 'uppercase';
+  applyToPreview();
+});
+
+// init
+applyToPreview();
+
+// handle Escape from fullscreen closing (in case user uses browser button)
+document.addEventListener('fullscreenchange', ()=>{
+  if(!document.fullscreenElement){
+    // if overlay visible but fullscreen left, close overlay
+    if(fsOverlay.style.display !== 'none'){
+      stopAndClose();
+    }
+  }
+});
+
+// ensure preview matrix if needed at load
+enablePreviewMatrix();
+
+// Accessibility: prevent space scrolling when overlay active
+document.addEventListener('keydown', (e)=>{
+  if(fsOverlay.style.display !== 'none' && e.code === 'Space'){
+    e.preventDefault();
+  }
+});
+
+// Also allow clicking overlay to toggle pause (user-friendly)
+fsOverlay.addEventListener('click', ()=>{ togglePause(); });
+
+// Clean up when unloading
+window.addEventListener('beforeunload', ()=>{
+  if(previewMatrix) previewMatrix.destroy();
+  if(fsMatrix) fsMatrix.destroy();
+});
+
+</script>
+</body>
+</html>
