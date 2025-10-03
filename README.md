@@ -1,3 +1,5 @@
+https://alfanrizkyw.github.io/running-text-by-paanz/
+
 📌 Deskripsi Proyek: Running Text Fullscreen Super Keren
 
 Proyek ini adalah sebuah website interaktif berbasis HTML, CSS, dan JavaScript yang memungkinkan pengguna membuat teks berjalan (running text) dengan tampilan super modern dan canggih.
